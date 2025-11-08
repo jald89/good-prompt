@@ -50,7 +50,7 @@ export const Button = React.forwardRef(function Button(
 ) {
   const computedDisabled = disabled ?? isLoading;
   const showSpinner = isLoading;
-  const content = loadingText ?? children;
+  const content = showSpinner ? loadingText ?? children : children;
   const isNativeButton =
     typeof Component === "string" ? Component.toLowerCase() === "button" : false;
   const finalType = isNativeButton ? type ?? "button" : type;

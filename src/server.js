@@ -4,10 +4,43 @@ const analyzeRoutes = require('./routes/analyzeRoutes');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || '*')
+  .split(',')
+  .map((origin) => origin.trim())
+  .map((origin) => origin.replace(/\/$/, ''))
+  .filter(Boolean);
+
+function appendVaryHeader(res, value) {
+  const current = res.getHeader('Vary');
+  if (!current) {
+    res.setHeader('Vary', value);
+    return;
+  }
+
+  const existing = Array.isArray(current) ? current.join(',') : current;
+  const items = existing.split(',').map((item) => item.trim().toLowerCase());
+  if (!items.includes(value.toLowerCase())) {
+    res.setHeader('Vary', `${existing}, ${value}`);
+  }
+}
+
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || '*');
+  const requestOrigin = req.headers.origin ? req.headers.origin.replace(/\/$/, '') : undefined;
+  const allowAll = allowedOrigins.includes('*');
+  const isAllowed =
+    allowAll ||
+    (requestOrigin ? allowedOrigins.includes(requestOrigin) : false);
+
+  appendVaryHeader(res, 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+
+  if (allowAll) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  } else if (isAllowed && requestOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
 
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);

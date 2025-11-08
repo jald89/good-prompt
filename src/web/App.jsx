@@ -502,7 +502,7 @@ function AnalysisWorkbench({
           <TabPanels className="mt-4 grid gap-3 md:grid-cols-3">
             <TabPanel
               value="prompt"
-              className="border-none bg-transparent p-0 text-left text-sm text-slate-600 shadow-none dark:text-slate-300"
+              className="border-none bg-transparent p-0 text-left text-sm text-slate-600 shadow-none whitespace-nowrap dark:text-slate-300"
             >
               Ideal para refinar ideas antes de producir imágenes nuevas.
             </TabPanel>
