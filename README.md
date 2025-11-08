@@ -160,6 +160,27 @@ La demo de la interfaz vive en `src/web` y usa Vite + TailwindCSS para mostrar e
 
 3. **Abre la URL en tu navegador** para explorar la demo con botones, tarjetas, pestañas y toasts.
 
+### Conectar la demo con la API de análisis
+
+El botón **"Analizar ahora"** envía solicitudes a la API Express incluida en este repositorio.
+
+1. En una terminal aparte, inicia el backend:
+
+   ```bash
+   npm start
+   ```
+
+   El servidor expone `POST http://localhost:3000/api/analyze/prompt` por defecto.
+
+2. Si ejecutas la API en otra URL o puerto, crea un archivo `.env` en `src/web` o exporta la variable antes de levantar Vite:
+
+   ```bash
+   # ejemplo de archivo src/web/.env.local
+   VITE_API_BASE_URL="https://mi-servidor.com"
+   ```
+
+   Vuelve a iniciar `npm run dev:web` para que el cambio tome efecto.
+
 ### Otros comandos útiles
 
 - `npm run build:web`: genera la versión optimizada de la demo (`dist/`).
