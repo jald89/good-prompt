@@ -1,16 +1,7 @@
 import React from "react";
 import { classNames } from "./classNames";
-import { focusRing, tabVariants } from "./theme";
 
 const TabsContext = React.createContext(null);
-
-const indicatorTones = {
-  primary: "bg-indigo-500",
-  neutral: "bg-slate-500",
-  success: "bg-emerald-500",
-  warning: "bg-amber-500",
-  danger: "bg-rose-500",
-};
 
 function useTabsContext(componentName) {
   const context = React.useContext(TabsContext);
@@ -27,9 +18,6 @@ export function Tabs({
   orientation = "horizontal",
   idPrefix,
   className,
-  variant = "segmented",
-  tone = "primary",
-  unmountOnExit = false,
   children,
   ...props
 }) {
@@ -54,11 +42,8 @@ export function Tabs({
       setValue,
       orientation,
       idBase: idPrefix ?? baseId,
-      variant,
-      tone,
-      unmountOnExit,
     }),
-    [activeValue, setValue, orientation, idPrefix, baseId, variant, tone, unmountOnExit]
+    [activeValue, setValue, orientation, idPrefix, baseId]
   );
 
   return (
@@ -66,7 +51,6 @@ export function Tabs({
       <div
         className={classNames("w-full", className)}
         data-orientation={orientation}
-        data-variant={variant}
         {...props}
       >
         {children}
@@ -79,10 +63,7 @@ export const TabList = React.forwardRef(function TabList(
   { className, children, label, ...props },
   ref
 ) {
-  const { orientation, variant } = useTabsContext("TabList");
-  const variantConfig = tabVariants[variant] ?? tabVariants.segmented;
-  const orientationClasses =
-    orientation === "vertical" ? "flex-col" : "flex-row items-center";
+  const { orientation } = useTabsContext("TabList");
 
   return (
     <div
@@ -90,7 +71,10 @@ export const TabList = React.forwardRef(function TabList(
       role="tablist"
       aria-label={label}
       aria-orientation={orientation}
-      className={classNames(variantConfig.list, orientationClasses, className)}
+      className={classNames(
+        "relative flex gap-2 rounded-xl bg-slate-100 p-1 dark:bg-slate-800",
+        className
+      )}
       {...props}
     >
       {children}
@@ -102,13 +86,11 @@ export const Tab = React.forwardRef(function Tab(
   { value, children, className, icon: Icon, disabled = false, ...props },
   ref
 ) {
-  const { activeValue, setValue, orientation, idBase, variant, tone } =
-    useTabsContext("Tab");
+  const { activeValue, setValue, orientation, idBase } = useTabsContext("Tab");
   const isSelected = activeValue === value;
 
   const tabId = `${idBase}-tab-${value}`;
   const panelId = `${idBase}-panel-${value}`;
-  const variantConfig = tabVariants[variant] ?? tabVariants.segmented;
 
   const handleClick = () => {
     if (!disabled) {
@@ -180,12 +162,10 @@ export const Tab = React.forwardRef(function Tab(
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       className={classNames(
-        variantConfig.tabBase,
-        focusRing,
+        "flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-50",
         {
-          [variantConfig.tabActive]: isSelected,
-          [variantConfig.tabInactive]: !isSelected,
-          "opacity-50": disabled,
+          "bg-white text-indigo-600 shadow-sm dark:bg-slate-900": isSelected,
+          "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white": !isSelected,
         },
         className
       )}
@@ -193,41 +173,26 @@ export const Tab = React.forwardRef(function Tab(
     >
       {Icon ? <Icon className="h-4 w-4" aria-hidden="true" /> : null}
       <span>{children}</span>
-      {variantConfig.indicator ? (
-        <span
-          aria-hidden="true"
-          className={classNames(
-            "pointer-events-none absolute inset-x-0 bottom-0 block h-0.5 origin-center scale-x-0 rounded-full transition-all duration-150 ease-out",
-            indicatorTones[tone] ?? indicatorTones.primary,
-            isSelected ? "scale-x-100 opacity-100" : "opacity-0"
-          )}
-        />
-      ) : null}
     </button>
   );
 });
 
 export function TabPanels({ className, children, ...props }) {
   return (
-    <div className={classNames("mt-4 space-y-4", className)} {...props}>
+    <div className={classNames("mt-4", className)} {...props}>
       {children}
     </div>
   );
 }
 
 export const TabPanel = React.forwardRef(function TabPanel(
-  { value, className, children, forceMount = false, ...props },
+  { value, className, children, ...props },
   ref
 ) {
-  const { activeValue, idBase, unmountOnExit } = useTabsContext("TabPanel");
+  const { activeValue, idBase } = useTabsContext("TabPanel");
   const tabId = `${idBase}-tab-${value}`;
   const panelId = `${idBase}-panel-${value}`;
   const isSelected = activeValue === value;
-  const shouldRender = isSelected || forceMount || !unmountOnExit;
-
-  if (!shouldRender) {
-    return null;
-  }
 
   return (
     <div
@@ -243,7 +208,7 @@ export const TabPanel = React.forwardRef(function TabPanel(
       )}
       {...props}
     >
-      {isSelected || forceMount ? children : null}
+      {isSelected ? children : null}
     </div>
   );
 });

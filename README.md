@@ -63,17 +63,14 @@ Este documento describe el alcance completo para crear un clon avanzado de Promp
 - [Arquitectura y componentes](docs/architecture.md)
 - [Estructura de carpetas recomendada](docs/folder-structure.md)
 - [Notas de UI inicial](docs/ui-blueprint.md)
-- [Kit de componentes reutilizables](docs/ui-kit.md)
 
 ## Kit de componentes base
 
-El directorio `src/web/components/ui` centraliza los elementos reutilizables del frontend. Incluye botones, tarjetas, pestañas y toasts con soporte para tema claro/oscuro, variantes visuales y estados accesibles (foco visible, roles ARIA, navegación por teclado). Consulta [docs/ui-kit.md](docs/ui-kit.md) para un resumen completo de props y patrones de uso.
+Para acelerar el desarrollo del frontend se añadió un kit de componentes accesibles y tematizables dentro de `src/web/components/ui`. El paquete inicial incluye botones, tarjetas, pestañas y toasts construidos con TailwindCSS y patrones de accesibilidad (`role`, `aria-*`, navegación por teclado) listos para reutilizarse en todas las pantallas.
 
 ```jsx
 import {
   Button,
-  ButtonGroup,
-  IconButton,
   Card,
   CardHeader,
   CardTitle,
@@ -85,7 +82,6 @@ import {
   TabPanels,
   TabPanel,
   ToastProvider,
-  ToastAction,
   useToast,
 } from "../src/web/components/ui";
 
@@ -93,13 +89,13 @@ function Example() {
   const { showToast } = useToast();
 
   return (
-    <ToastProvider position="top-center">
-      <Card variant="elevated" interactive>
+    <ToastProvider>
+      <Card>
         <CardHeader>
           <CardTitle>Prueba de componentes</CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="prompt" variant="segmented">
+          <Tabs defaultValue="prompt">
             <TabList label="Modos de análisis">
               <Tab value="prompt">Prompt</Tab>
               <Tab value="imagen">Imagen</Tab>
@@ -111,26 +107,9 @@ function Example() {
           </Tabs>
         </CardContent>
         <CardFooter>
-          <ButtonGroup>
-            <Button tone="neutral" variant="outline">
-              Cancelar
-            </Button>
-            <Button
-              onClick={() =>
-                showToast({
-                  title: "Listo",
-                  description: "Acción completada",
-                  variant: "success",
-                  action: <ToastAction onClick={() => console.log("guardar")}>Guardar</ToastAction>,
-                })
-              }
-            >
-              Mostrar toast
-            </Button>
-          </ButtonGroup>
-          <IconButton label="Compartir" variant="ghost">
-            <span aria-hidden>⇪</span>
-          </IconButton>
+          <Button onClick={() => showToast({ title: "Listo", description: "Acción completada", variant: "success" })}>
+            Mostrar toast
+          </Button>
         </CardFooter>
       </Card>
     </ToastProvider>
@@ -139,31 +118,6 @@ function Example() {
 ```
 
 > Sugerencia: exportar este kit como paquete compartido (`packages/ui`) al migrar a Turborepo para consumirlo desde apps de Next.js o React nativas.
-
-## ¿Cómo inicializo la UI?
-
-Se añadió un entorno mínimo con Vite + TailwindCSS para probar el kit de componentes sin configurar toda la aplicación. Los archivos base viven en `src/web` (`App.jsx`, `main.jsx`, `index.html`, `index.css`).
-
-1. Instala dependencias (si tu entorno tiene acceso al registro):
-
-   ```bash
-   npm install
-   ```
-
-2. Levanta el servidor de desarrollo de la UI:
-
-   ```bash
-   npm run dev:web
-   ```
-
-3. Abre `http://localhost:5173` para ver la demo interactiva. Encontrarás un hero, una tarjeta con pestañas y un botón que dispara toasts para verificar el comportamiento.
-
-### Scripts útiles
-
-- `npm run build:web`: genera un build estático en `dist/web` listo para deploy.
-- `npm run preview:web`: sirve el build generado para una revisión rápida.
-
-El entorno utiliza Vite con `@vitejs/plugin-react`, por lo que puedes personalizar la configuración en `vite.config.js` y ampliar Tailwind mediante `tailwind.config.js`.
 
 ## Próximos pasos sugeridos
 1. Alinear al equipo sobre alcance y dependencias externas.
