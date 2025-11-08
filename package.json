@@ -1,0 +1,26 @@
+{
+  "name": "good-prompt",
+  "version": "0.1.0",
+  "description": "Prompt analysis service prototype",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "jest",
+    "dev:web": "vite --config vite.config.js",
+    "build:web": "vite build --config vite.config.js",
+    "preview:web": "vite preview --config vite.config.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "jest": "^29.7.0",
+    "postcss": "^8.4.45",
+    "tailwindcss": "^3.4.13",
+    "vite": "^5.4.2"
+  }
+}
