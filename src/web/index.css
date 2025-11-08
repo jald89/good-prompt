@@ -14,12 +14,12 @@ body {
 body {
   margin: 0;
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  background: #f8fafc;
   color: #0f172a;
 }
 
 .dark body {
-  background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%);
+  background: #020617;
   color: #e2e8f0;
 }
 
