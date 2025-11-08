@@ -1,7 +1,6 @@
 import React from "react";
 import {
   Button,
-  ButtonGroup,
   Card,
   CardHeader,
   CardTitle,
@@ -89,41 +88,6 @@ function DemoToastButton() {
   );
 }
 
-function AnalysisTabs() {
-  return (
-    <Tabs defaultValue="prompt" variant="segmented">
-      <TabList label="Selecciona el flujo de evaluación">
-        <Tab value="prompt">Sólo prompt</Tab>
-        <Tab value="imagen">Prompt + imagen</Tab>
-        <Tab value="historial">Historial</Tab>
-      </TabList>
-      <TabPanels>
-        <TabPanel value="prompt" className="space-y-2 text-sm text-slate-600 dark:text-slate-200">
-          <p>
-            Ingresa hasta 2,000 caracteres y obtén claridad sobre estilo, atributos y oportunidades
-            de mejora.
-          </p>
-          <p className="font-medium text-slate-900 dark:text-white">
-            Perfecto para pulir ideas antes de generar nuevas imágenes.
-          </p>
-        </TabPanel>
-        <TabPanel value="imagen" className="space-y-2 text-sm text-slate-600 dark:text-slate-200">
-          <p>
-            Sube una imagen y compara contra tu prompt para recibir un match score y recomendaciones
-            guiadas.
-          </p>
-        </TabPanel>
-        <TabPanel value="historial" className="space-y-2 text-sm text-slate-600 dark:text-slate-200">
-          <p>
-            Guarda resultados al iniciar sesión vía OAuth para revisarlos más tarde o repetirlos en
-            lote.
-          </p>
-        </TabPanel>
-      </TabPanels>
-    </Tabs>
-  );
-}
-
 const steps = [
   {
     title: "Describe tu idea",
@@ -150,6 +114,141 @@ const highlights = [
   "✓ Multilenguaje español/inglés en toda la experiencia.",
   "✓ Transparencia de costes y opción para apoyar la misión.",
 ];
+
+function formatFileSize(bytes) {
+  if (!bytes && bytes !== 0) return null;
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let index = 0;
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024;
+    index += 1;
+  }
+  const formatted = index === 0 ? Math.round(value).toString() : value.toFixed(1);
+  return `${formatted} ${units[index]}`;
+}
+
+function UploadDropzone({ image, onSelectImage, onRemoveImage, isDisabled }) {
+  const fileInputRef = React.useRef(null);
+  const [isDragging, setIsDragging] = React.useState(false);
+  const instructionsId = React.useId();
+
+  const handleFiles = React.useCallback(
+    (fileList) => {
+      if (!fileList?.length || isDisabled) return;
+      const [file] = Array.from(fileList);
+      if (file) {
+        onSelectImage?.(file);
+      }
+    },
+    [isDisabled, onSelectImage]
+  );
+
+  const handleInputChange = (event) => {
+    const { files } = event.target;
+    handleFiles(files);
+    event.target.value = "";
+  };
+
+  const handleDrop = (event) => {
+    event.preventDefault();
+    setIsDragging(false);
+    handleFiles(event.dataTransfer?.files);
+  };
+
+  const handleDragOver = (event) => {
+    event.preventDefault();
+    if (isDisabled) return;
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (event) => {
+    event.preventDefault();
+    setIsDragging(false);
+  };
+
+  const openFileDialog = () => {
+    if (isDisabled) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleKeyDown = (event) => {
+    if (isDisabled) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openFileDialog();
+    }
+  };
+
+  const imageName = image?.file?.name ?? image?.name ?? null;
+  const imageSize = image?.file?.size ?? image?.size ?? null;
+
+  return (
+    <div className="space-y-3">
+      <div
+        role="button"
+        tabIndex={isDisabled ? -1 : 0}
+        aria-describedby={instructionsId}
+        className={`group flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed px-6 text-center text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50 dark:focus-visible:ring-offset-slate-950 ${
+          isDragging
+            ? "border-indigo-400 bg-indigo-50 dark:border-indigo-500 dark:bg-slate-900/70"
+            : "border-slate-300 bg-slate-50 hover:border-indigo-300 hover:bg-indigo-50 dark:border-slate-600 dark:bg-slate-900 dark:hover:border-indigo-500"
+        } ${isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+        onClick={openFileDialog}
+        onKeyDown={handleKeyDown}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+      >
+        <span className="text-base font-semibold text-slate-700 dark:text-slate-200">
+          Arrastra y suelta o haz clic para subir
+        </span>
+        <span id={instructionsId} className="text-xs text-slate-500 dark:text-slate-400">
+          PNG o JPG, hasta 10MB. Eliminamos los archivos tras 1 hora.
+        </span>
+        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200">
+          ✓ Drag & drop habilitado
+        </span>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg"
+          className="sr-only"
+          onChange={handleInputChange}
+          disabled={isDisabled}
+        />
+      </div>
+      {imageName ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+          <div className="flex flex-col text-left">
+            <span className="font-medium">{imageName}</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              {imageSize ? formatFileSize(imageSize) : "Tamaño desconocido"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {image?.previewUrl ? (
+              <img
+                src={image.previewUrl}
+                alt="Vista previa de la imagen cargada"
+                className="h-12 w-12 rounded-md object-cover ring-1 ring-slate-900/10 dark:ring-white/10"
+              />
+            ) : null}
+            <Button
+              tone="neutral"
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={onRemoveImage}
+            >
+              Quitar
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function HeroSection({ onStartAnalysis }) {
   return (
@@ -219,20 +318,38 @@ function AnalysisOutcome({ result, isAnalyzing, error }) {
 
   const { analysis, metadata } = result;
   const evaluatedAt = metadata?.evaluatedAt ? new Date(metadata.evaluatedAt) : null;
+  const analysisModeLabel =
+    metadata?.analysisMode === "image"
+      ? "Prompt + imagen"
+      : metadata?.analysisMode === "prompt"
+      ? "Sólo prompt"
+      : null;
 
   return (
     <section
       aria-labelledby="analysis-outcome-title"
       className="space-y-6 rounded-2xl border border-slate-200 bg-slate-50/60 p-6 dark:border-slate-700 dark:bg-slate-900/60"
     >
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h3 id="analysis-outcome-title" className="text-lg font-semibold text-slate-900 dark:text-white">
-            Resultado del análisis
-          </h3>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 id="analysis-outcome-title" className="text-lg font-semibold text-slate-900 dark:text-white">
+              Resultado del análisis
+            </h3>
+            {analysisModeLabel ? (
+              <span className="inline-flex items-center rounded-full bg-slate-900/5 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-slate-100/10 dark:text-slate-300">
+                {analysisModeLabel}
+              </span>
+            ) : null}
+          </div>
           {evaluatedAt ? (
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Evaluado el {evaluatedAt.toLocaleString()}
+            </p>
+          ) : null}
+          {metadata?.imageName ? (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Imagen analizada: <span className="font-medium text-slate-700 dark:text-slate-200">{metadata.imageName}</span>
             </p>
           ) : null}
         </div>
@@ -328,7 +445,15 @@ function AnalysisOutcome({ result, isAnalyzing, error }) {
   );
 }
 
+const modeLabels = {
+  prompt: "Sólo prompt",
+  image: "Prompt + imagen",
+  history: "Historial",
+};
+
 function AnalysisWorkbench({
+  mode,
+  onModeChange,
   prompt,
   onPromptChange,
   charLimit,
@@ -339,9 +464,22 @@ function AnalysisWorkbench({
   analysisResult,
   error,
   textareaRef,
+  uploadedImage,
+  onSelectImage,
+  onRemoveImage,
+  history,
+  onHistorySelect,
 }) {
-  const canReset = Boolean(prompt || analysisResult || error);
-  const isAnalyzeDisabled = isAnalyzing || !prompt.trim();
+  const canReset = Boolean(prompt || analysisResult || error || uploadedImage);
+  const trimmedPrompt = prompt.trim();
+  const isAnalyzeDisabled =
+    mode === "history" || isAnalyzing || !trimmedPrompt || (mode === "image" && !uploadedImage);
+  const showActions = mode === "prompt" || mode === "image";
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    onAnalyze();
+  };
 
   return (
     <Card
@@ -351,78 +489,188 @@ function AnalysisWorkbench({
       <CardHeader className="gap-1">
         <CardTitle className="text-left text-2xl">Panel de análisis</CardTitle>
         <CardDescription className="text-left">
-          Centro de control enfocado: ingresa el prompt, adjunta tu imagen y obtén insights sin
-          distracciones.
+          Selecciona el tipo de evaluación y sigue los pasos guiados para obtener resultados claros.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="flex flex-col gap-3">
-            <label
-              htmlFor="prompt"
-              className="text-sm font-semibold text-slate-700 dark:text-slate-200"
+        <Tabs value={mode} onValueChange={onModeChange} variant="segmented">
+          <TabList label="Selecciona el flujo de evaluación">
+            <Tab value="prompt">Sólo prompt</Tab>
+            <Tab value="image">Prompt + imagen</Tab>
+            <Tab value="history">Historial</Tab>
+          </TabList>
+          <TabPanels className="mt-4 grid gap-3 md:grid-cols-3">
+            <TabPanel
+              value="prompt"
+              className="border-none bg-transparent p-0 text-left text-sm text-slate-600 shadow-none dark:text-slate-300"
             >
-              Prompt (máx. {charLimit} caracteres)
-            </label>
-            <textarea
-              id="prompt"
-              name="prompt"
-              ref={textareaRef}
-              rows={6}
-              maxLength={charLimit}
-              value={prompt}
-              onChange={onPromptChange}
-              aria-describedby="prompt-helper prompt-count"
-              className="w-full rounded-xl border border-slate-200 bg-white p-4 text-left text-sm text-slate-900 shadow-sm transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-600"
-              placeholder="Describe la escena, estilo, iluminación y detalles clave de tu imagen ideal..."
-            />
-            <div className="flex items-start justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-              <span id="prompt-helper">Consejo: mantén frases cortas, usa descriptores concretos.</span>
-              <span id="prompt-count" aria-live="polite">
-                {charCount} / {charLimit}
-              </span>
+              Ideal para refinar ideas antes de producir imágenes nuevas.
+            </TabPanel>
+            <TabPanel
+              value="image"
+              className="border-none bg-transparent p-0 text-left text-sm text-slate-600 shadow-none dark:text-slate-300"
+            >
+              Compara tu prompt con una imagen generada y recibe un match score accionable.
+            </TabPanel>
+            <TabPanel
+              value="history"
+              className="border-none bg-transparent p-0 text-left text-sm text-slate-600 shadow-none dark:text-slate-300"
+            >
+              Consulta análisis anteriores guardados en tu sesión actual.
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
+
+        {mode === "prompt" ? (
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div className="flex flex-col gap-3">
+              <label
+                htmlFor="prompt"
+                className="text-sm font-semibold text-slate-700 dark:text-slate-200"
+              >
+                Prompt (máx. {charLimit} caracteres)
+              </label>
+              <textarea
+                id="prompt"
+                name="prompt"
+                ref={textareaRef}
+                rows={6}
+                maxLength={charLimit}
+                value={prompt}
+                onChange={onPromptChange}
+                aria-describedby="prompt-helper prompt-count"
+                className="w-full rounded-xl border border-slate-200 bg-white p-4 text-left text-sm text-slate-900 shadow-sm transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-600"
+                placeholder="Describe la escena, estilo, iluminación y detalles clave de tu imagen ideal..."
+              />
+              <div className="flex items-start justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+                <span id="prompt-helper">
+                  Consejo: mantén frases cortas, usa descriptores concretos.
+                </span>
+                <span id="prompt-count" aria-live="polite">
+                  {charCount} / {charLimit}
+                </span>
+              </div>
             </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button tone="neutral" variant="ghost" type="button" onClick={onReset} disabled={!canReset}>
+                Reiniciar
+              </Button>
+              <Button
+                tone="success"
+                type="submit"
+                disabled={isAnalyzeDisabled}
+                isLoading={isAnalyzing}
+                loadingText="Analizando..."
+              >
+                Analizar ahora
+              </Button>
+            </div>
+          </form>
+        ) : null}
+
+        {mode === "image" ? (
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div className="flex flex-col gap-3">
+              <label
+                htmlFor="prompt"
+                className="text-sm font-semibold text-slate-700 dark:text-slate-200"
+              >
+                Prompt (máx. {charLimit} caracteres)
+              </label>
+              <textarea
+                id="prompt"
+                name="prompt"
+                ref={textareaRef}
+                rows={6}
+                maxLength={charLimit}
+                value={prompt}
+                onChange={onPromptChange}
+                aria-describedby="prompt-helper-image prompt-count-image"
+                className="w-full rounded-xl border border-slate-200 bg-white p-4 text-left text-sm text-slate-900 shadow-sm transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-600"
+                placeholder="Describe la escena que quieres comparar con tu imagen generada..."
+              />
+              <div className="flex items-start justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+                <span id="prompt-helper-image">
+                  Describe elementos visibles para mejorar el match score.
+                </span>
+                <span id="prompt-count-image" aria-live="polite">
+                  {charCount} / {charLimit}
+                </span>
+              </div>
+            </div>
+            <UploadDropzone
+              image={uploadedImage}
+              onSelectImage={onSelectImage}
+              onRemoveImage={onRemoveImage}
+              isDisabled={isAnalyzing}
+            />
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button tone="neutral" variant="ghost" type="button" onClick={onReset} disabled={!canReset}>
+                Reiniciar
+              </Button>
+              <Button
+                tone="success"
+                type="submit"
+                disabled={isAnalyzeDisabled}
+                isLoading={isAnalyzing}
+                loadingText="Analizando..."
+              >
+                Analizar ahora
+              </Button>
+            </div>
+          </form>
+        ) : null}
+
+        {mode === "history" ? (
+          <div className="space-y-3" role="region" aria-live="polite">
+            {history?.length ? (
+              <ul className="space-y-2" aria-label="Historial de análisis">
+                {history.map((entry) => (
+                  <li key={entry.id}>
+                    <button
+                      type="button"
+                      onClick={() => onHistorySelect(entry)}
+                      className="flex w-full flex-col gap-1 rounded-xl border border-slate-200 bg-white p-4 text-left text-sm shadow-sm transition hover:border-indigo-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-indigo-400 dark:focus-visible:ring-indigo-500"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                          {modeLabels[entry.mode] ?? "Análisis"}
+                        </span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : "Fecha desconocida"}
+                        </span>
+                      </div>
+                      <p className="font-medium text-slate-800 dark:text-slate-100">
+                        {entry.prompt}
+                      </p>
+                      {entry.metadata?.imageName ? (
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Imagen: {entry.metadata.imageName}
+                        </p>
+                      ) : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
+                Aún no tienes análisis guardados en esta sesión. Ejecuta un análisis para verlo aquí.
+              </p>
+            )}
           </div>
-          <div className="flex flex-col gap-3">
-            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-              Imagen (opcional)
-            </span>
-            <button
-              type="button"
-              className="group flex h-full min-h-[220px] flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 text-center text-sm text-slate-600 transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-indigo-500 dark:hover:bg-slate-900/70"
-            >
-              <span className="text-base font-semibold text-slate-700 dark:text-slate-200">
-                Arrastra y suelta o haz clic para subir
-              </span>
-              <span>PNG o JPG, hasta 10MB</span>
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200">
-                ✓ Drag & drop habilitado
-              </span>
-            </button>
-            <AnalysisTabs />
-          </div>
-        </div>
+        ) : null}
+
         <AnalysisOutcome result={analysisResult} isAnalyzing={isAnalyzing} error={error} />
       </CardContent>
-      <CardFooter className="flex flex-col gap-4 border-t border-slate-100 pt-6 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Cada análisis permanece disponible durante 1 hora. Autenticarse desbloquea historial y
-          evaluaciones en lote.
+      <CardFooter className="flex flex-col gap-2 border-t border-slate-100 pt-6 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
+        <p>
+          Cada análisis permanece disponible durante 1 hora. Autenticarse desbloquea historial persistente y evaluaciones en lote.
         </p>
-        <ButtonGroup>
-          <Button tone="neutral" variant="ghost" onClick={onReset} disabled={!canReset}>
-            Reiniciar
-          </Button>
-          <Button
-            tone="success"
-            onClick={onAnalyze}
-            disabled={isAnalyzeDisabled}
-            isLoading={isAnalyzing}
-            loadingText="Analizando..."
-          >
-            Analizar ahora
-          </Button>
-        </ButtonGroup>
+        {showActions ? (
+          <p>
+            Consejo: guarda tu resultado en una pestaña aparte o descárgalo antes de que expire.
+          </p>
+        ) : null}
       </CardFooter>
     </Card>
   );
@@ -499,6 +747,9 @@ function HighlightsSection() {
 
 function PromptAnalysisExperience() {
   const [prompt, setPrompt] = React.useState("");
+  const [mode, setMode] = React.useState("prompt");
+  const [uploadedImage, setUploadedImage] = React.useState(null);
+  const [history, setHistory] = React.useState([]);
   const [analysisResult, setAnalysisResult] = React.useState(null);
   const [isAnalyzing, setIsAnalyzing] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState(null);
@@ -513,16 +764,129 @@ function PromptAnalysisExperience() {
     }
   }, []);
 
+  const focusPromptSmooth = React.useCallback(() => {
+    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(() => {
+        focusPrompt();
+      });
+    } else {
+      focusPrompt();
+    }
+  }, [focusPrompt]);
+
+  const handleModeChange = React.useCallback(
+    (nextMode) => {
+      setMode(nextMode);
+      setErrorMessage(null);
+      if (nextMode === "prompt" || nextMode === "image") {
+        focusPromptSmooth();
+      }
+    },
+    [focusPromptSmooth]
+  );
+
   const handlePromptChange = (event) => {
     const nextValue = event.target.value.slice(0, charLimit);
     setPrompt(nextValue);
   };
 
+  const handleImageSelect = React.useCallback(
+    (file) => {
+      if (!file) return;
+      const isValidType = /image\/(png|jpe?g)$/i.test(file.type || "");
+      if (!isValidType) {
+        showToast({
+          title: "Formato no soportado",
+          description: "Sube una imagen PNG o JPG para continuar.",
+          variant: "warning",
+        });
+        return;
+      }
+
+      const maxSize = 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        showToast({
+          title: "Archivo demasiado grande",
+          description: "La imagen debe pesar menos de 10MB.",
+          variant: "warning",
+        });
+        return;
+      }
+
+      setUploadedImage((previous) => {
+        if (previous?.previewUrl) {
+          URL.revokeObjectURL(previous.previewUrl);
+        }
+        return {
+          file,
+          previewUrl: URL.createObjectURL(file),
+        };
+      });
+
+      showToast({
+        title: "Imagen lista",
+        description: `${file.name} se añadió al análisis.`,
+        variant: "success",
+      });
+    },
+    [showToast]
+  );
+
+  const handleImageRemove = React.useCallback(
+    (options = {}) => {
+      setUploadedImage((previous) => {
+        if (previous?.previewUrl) {
+          URL.revokeObjectURL(previous.previewUrl);
+        }
+        return null;
+      });
+      if (!options?.silent) {
+        showToast({
+          title: "Imagen removida",
+          description: "Puedes cargar una nueva imagen cuando quieras.",
+          variant: "neutral",
+        });
+      }
+    },
+    [showToast]
+  );
+
+  React.useEffect(() => {
+    return () => {
+      if (uploadedImage?.previewUrl) {
+        URL.revokeObjectURL(uploadedImage.previewUrl);
+      }
+    };
+  }, [uploadedImage]);
+
   const handleReset = () => {
     setPrompt("");
     setAnalysisResult(null);
     setErrorMessage(null);
-    focusPrompt();
+    if (uploadedImage) {
+      handleImageRemove({ silent: true });
+    }
+    if (mode === "prompt" || mode === "image") {
+      focusPromptSmooth();
+    }
+  };
+
+  const decorateResult = (data, currentMode) => {
+    const evaluatedAt = data?.metadata?.evaluatedAt ?? new Date().toISOString();
+    const isImageMode = currentMode === "image";
+    const imageName = isImageMode && uploadedImage?.file?.name ? uploadedImage.file.name : undefined;
+    const imageSize = isImageMode && uploadedImage?.file?.size ? uploadedImage.file.size : undefined;
+
+    return {
+      ...data,
+      metadata: {
+        ...data?.metadata,
+        evaluatedAt,
+        analysisMode: currentMode,
+        imageName,
+        imageSize,
+      },
+    };
   };
 
   const handleAnalyze = async () => {
@@ -534,7 +898,17 @@ function PromptAnalysisExperience() {
         description: "Escribe un prompt de al menos un carácter para ejecutar el análisis.",
         variant: "warning",
       });
-      focusPrompt();
+      focusPromptSmooth();
+      return;
+    }
+
+    if (mode === "image" && !uploadedImage) {
+      setErrorMessage("Añade una imagen para ejecutar la comparación.");
+      showToast({
+        title: "Imagen requerida",
+        description: "Sube una imagen PNG o JPG para evaluar junto al prompt.",
+        variant: "warning",
+      });
       return;
     }
 
@@ -543,12 +917,18 @@ function PromptAnalysisExperience() {
 
     try {
       const baseUrl = (API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/$/, "");
+      const payload = {
+        prompt: trimmedPrompt,
+        mode,
+        imageName:
+          mode === "image" && uploadedImage?.file?.name ? uploadedImage.file.name : undefined,
+      };
       const response = await fetch(`${baseUrl}/api/analyze/prompt`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt: trimmedPrompt }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -557,17 +937,31 @@ function PromptAnalysisExperience() {
       }
 
       const data = await response.json();
-      setAnalysisResult(data);
+      const enrichedResult = decorateResult(data, mode);
+      setAnalysisResult(enrichedResult);
+      setHistory((previous) => {
+        const entry = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          prompt: trimmedPrompt,
+          mode,
+          createdAt: enrichedResult.metadata?.evaluatedAt,
+          metadata: enrichedResult.metadata,
+          result: enrichedResult,
+        };
+        const next = [entry, ...previous];
+        return next.slice(0, 15);
+      });
       showToast({
         title: "Análisis completado",
         description: "Revisa el puntaje y las sugerencias generadas para tu prompt.",
         variant: "success",
-        meta: data?.analysis?.promptQualityScore
-          ? [`Puntaje: ${data.analysis.promptQualityScore}/100`]
+        meta: enrichedResult?.analysis?.promptQualityScore
+          ? [`Puntaje: ${enrichedResult.analysis.promptQualityScore}/100`]
           : undefined,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Error inesperado durante el análisis.";
+      const message =
+        error instanceof Error ? error.message : "Error inesperado durante el análisis.";
       setErrorMessage(message);
       showToast({
         title: "Error al analizar",
@@ -578,6 +972,33 @@ function PromptAnalysisExperience() {
       setIsAnalyzing(false);
     }
   };
+
+  const handleHistorySelect = React.useCallback(
+    (entry) => {
+      if (!entry) return;
+      setAnalysisResult(entry.result);
+      setPrompt(entry.prompt);
+      setMode(entry.mode === "image" ? "image" : "prompt");
+      setErrorMessage(null);
+      if (entry.metadata?.imageName) {
+        setUploadedImage({ name: entry.metadata.imageName, size: entry.metadata?.imageSize });
+      } else {
+        setUploadedImage(null);
+      }
+      focusPromptSmooth();
+      showToast({
+        title: "Resultado cargado",
+        description: "Mostrando el análisis seleccionado del historial.",
+        variant: "neutral",
+      });
+    },
+    [focusPromptSmooth, showToast]
+  );
+
+  const handleStartAnalysis = React.useCallback(() => {
+    setMode("prompt");
+    focusPromptSmooth();
+  }, [focusPromptSmooth]);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 pt-12 md:px-12">
@@ -598,8 +1019,10 @@ function PromptAnalysisExperience() {
         </div>
       </header>
       <main className="flex flex-col gap-16">
-        <HeroSection onStartAnalysis={focusPrompt} />
+        <HeroSection onStartAnalysis={handleStartAnalysis} />
         <AnalysisWorkbench
+          mode={mode}
+          onModeChange={handleModeChange}
           prompt={prompt}
           onPromptChange={handlePromptChange}
           charLimit={charLimit}
@@ -610,6 +1033,11 @@ function PromptAnalysisExperience() {
           analysisResult={analysisResult}
           error={errorMessage}
           textareaRef={textareaRef}
+          uploadedImage={uploadedImage}
+          onSelectImage={handleImageSelect}
+          onRemoveImage={handleImageRemove}
+          history={history}
+          onHistorySelect={handleHistorySelect}
         />
         <HowItWorksSection />
         <HighlightsSection />
@@ -623,6 +1051,7 @@ function PromptAnalysisExperience() {
     </div>
   );
 }
+
 
 export default function App() {
   return (
