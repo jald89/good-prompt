@@ -1,3 +1,10 @@
+// Load local .env in development so process.env is populated (no-op if not present)
+try {
+  require('dotenv').config();
+} catch (e) {
+  /* ignore if dotenv is not installed; package.json updated to include it */
+}
+
 const express = require('express');
 const analyzeRoutes = require('./routes/analyzeRoutes');
 

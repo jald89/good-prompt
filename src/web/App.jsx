@@ -23,6 +23,7 @@ const API_BASE_URL =
   typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL
     ? import.meta.env.VITE_API_BASE_URL
     : DEFAULT_API_BASE_URL;
+// Frontend always posts to the server endpoint. Server will decide whether to forward to n8n.
 
 function useThemePreference() {
   const [theme, setTheme] = React.useState(() => {
@@ -292,14 +293,40 @@ function AnalysisOutcome({ result, isAnalyzing, error }) {
   }
 
   if (error) {
+    // Detectar si el error es un objeto con la estructura esperada
+    const errorObject = typeof error === 'object' && error !== null ? error : null;
+    const errorMessage = errorObject?.error?.message || error;
+    const errorCode = errorObject?.error?.code;
+    const requestId = errorObject?.error?.requestId;
+    const mode = errorObject?.error?.mode;
+
     return (
       <div
         role="alert"
         aria-live="assertive"
-        className="space-y-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-100"
+        className="space-y-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-100"
       >
         <p className="font-semibold">No se pudo completar el análisis</p>
-        <p>{error}</p>
+        <p>{errorMessage}</p>
+        {(errorCode || requestId || mode) && (
+          <div className="mt-2 space-y-1 border-t border-rose-200/50 pt-2 text-xs dark:border-rose-500/30">
+            {errorCode && (
+              <p>
+                <span className="font-medium">Código:</span> {errorCode}
+              </p>
+            )}
+            {requestId && (
+              <p>
+                <span className="font-medium">ID de solicitud:</span> {requestId}
+              </p>
+            )}
+            {mode && (
+              <p>
+                <span className="font-medium">Modo:</span> {mode}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -388,14 +415,25 @@ function AnalysisOutcome({ result, isAnalyzing, error }) {
           </div>
           <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-900/5 dark:bg-slate-950/60 dark:ring-white/10">
             <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Palabras clave detectadas</h4>
-            {analysis?.keywords?.length ? (
+            {Array.isArray(analysis?.keywords) && analysis.keywords.length ? (
               <ul className="mt-3 grid gap-2 text-sm">
-                {analysis.keywords.map(({ word, count }) => (
-                  <li key={word} className="flex items-center justify-between rounded-lg bg-slate-100 px-3 py-2 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                    <span className="font-medium">{word}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">×{count}</span>
-                  </li>
-                ))}
+                {analysis.keywords.map((kw, idx) => {
+                  if (typeof kw === "string") {
+                    return (
+                      <li key={kw} className="flex items-center justify-between rounded-lg bg-slate-100 px-3 py-2 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                        <span className="font-medium">{kw}</span>
+                      </li>
+                    );
+                  } else if (kw && typeof kw === "object" && "word" in kw) {
+                    return (
+                      <li key={kw.word} className="flex items-center justify-between rounded-lg bg-slate-100 px-3 py-2 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                        <span className="font-medium">{kw.word}</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">{kw.count ? `×${kw.count}` : null}</span>
+                      </li>
+                    );
+                  }
+                  return null;
+                })}
               </ul>
             ) : (
               <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
@@ -917,26 +955,60 @@ function PromptAnalysisExperience() {
 
     try {
       const baseUrl = (API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/$/, "");
-      const payload = {
-        prompt: trimmedPrompt,
-        mode,
-        imageName:
-          mode === "image" && uploadedImage?.file?.name ? uploadedImage.file.name : undefined,
-      };
-      const response = await fetch(`${baseUrl}/api/analyze/prompt`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || "El servidor devolvió un error inesperado.");
+      let response;
+      // If we're in image mode and have a File, send multipart/form-data
+      if (mode === "image" && uploadedImage?.file) {
+        const form = new FormData();
+        form.append("prompt", trimmedPrompt);
+        form.append("mode", mode);
+        // attach the actual File object under the field name 'image'
+        form.append("image", uploadedImage.file, uploadedImage.file.name);
+
+        response = await fetch(`${baseUrl}/api/analyze/prompt`, {
+          method: "POST",
+          body: form,
+        });
+      } else {
+        const payload = {
+          prompt: trimmedPrompt,
+          mode,
+        };
+
+        response = await fetch(`${baseUrl}/api/analyze/prompt`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
       }
 
-      const data = await response.json();
+      // Read raw text first (safer for error handling), then try to parse JSON
+      const raw = await response.text();
+      let data;
+      try {
+        data = raw ? JSON.parse(raw) : undefined;
+      } catch (err) {
+        data = undefined;
+      }
+
+      // If server signaled an error (status code or error payload), set structured error and stop
+      if (!response.ok || (data && data.error)) {
+        const errorPayload = data?.error
+          ? { error: data.error }
+          : { error: { message: raw || "El servidor devolvió un error desconocido." } };
+
+        setErrorMessage(errorPayload);
+        showToast({
+          title: "Error al analizar",
+          description: errorPayload.error.message,
+          variant: "error",
+          meta: errorPayload.error.requestId ? [`ID: ${errorPayload.error.requestId}`] : undefined,
+        });
+        return;
+      }
+
       const enrichedResult = decorateResult(data, mode);
       setAnalysisResult(enrichedResult);
       setHistory((previous) => {
@@ -960,13 +1032,22 @@ function PromptAnalysisExperience() {
           : undefined,
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Error inesperado durante el análisis.";
+      const message = error instanceof Error ? error.message : "Error inesperado durante el análisis.";
+      const errorCode = error?.cause?.code;
+      const requestId = error?.cause?.requestId;
+      
       setErrorMessage(message);
+      
       showToast({
         title: "Error al analizar",
         description: message,
         variant: "error",
+        meta: requestId ? [`ID: ${requestId}`] : undefined,
+        action: errorCode === "RATE_LIMIT_EXCEEDED" ? (
+          <ToastAction onClick={() => console.log("Notificar cuando el rate limit termine")}>
+            Notificarme
+          </ToastAction>
+        ) : undefined
       });
     } finally {
       setIsAnalyzing(false);
@@ -1005,17 +1086,14 @@ function PromptAnalysisExperience() {
       <header className="flex flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
         <div className="space-y-1">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-            PromptScore Clone
+            ¿Qué tan bueno es tu prompt?
           </p>
           <p className="text-base text-slate-600 dark:text-slate-300">
-            Evaluación avanzada de prompts e imágenes impulsada por IA de visión.
+            Analiza tu prompt y veamos que puede mejorar.
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <ThemeToggle />
-          <Button tone="success" variant="outline">
-            Ver transparencia de costes
-          </Button>
         </div>
       </header>
       <main className="flex flex-col gap-16">
@@ -1043,9 +1121,18 @@ function PromptAnalysisExperience() {
         <HighlightsSection />
       </main>
       <footer className="mt-20 flex flex-col items-center gap-2 px-6 text-center text-xs text-slate-500 md:px-12 dark:text-slate-400">
-        <span>PromptScore Clone · UI demo inicial</span>
+        <span>Good Prompt · V1</span>
         <span>
-          Ejecuta <code>npm run dev:web</code> y abre <code>http://localhost:5173</code> para verla en acción.
+          A product developed by{' '}
+          <a
+            href="https://djibia.cloud"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-slate-700 dark:hover:text-slate-200"
+          >
+            Djibia AI Agency
+          </a>
+          .
         </span>
       </footer>
     </div>
